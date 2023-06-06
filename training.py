@@ -1,0 +1,87 @@
+import numpy as np
+from torchvision.ops import focal_loss
+from torch import float32, no_grad
+from torch.optim import Adam
+from tqdm import tqdm
+
+
+class EarlyStopper:
+    def __init__(self, patience=1, min_delta=0):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.counter = 0
+        self.min_validation_loss = np.inf
+        self.min_model = None
+
+    def early_stop(self, validation_loss, model):
+        if validation_loss < self.min_validation_loss:
+            self.min_validation_loss = validation_loss
+            self.min_model = model
+            self.counter = 0
+        elif validation_loss >= (self.min_validation_loss + self.min_delta):
+            self.counter += 1
+            if self.counter >= self.patience:
+                return True
+        return False
+    
+
+def train_epoch(model, dataloader, lossfn, opt, device):
+    model.train()
+    totaltrainloss = 0
+    for x, y in tqdm(dataloader):
+        x, y = x.to(device, dtype=float32), y.to(device, dtype=float32)
+
+        opt.zero_grad()
+        pred = model(x)
+        loss = lossfn(pred, y)
+        loss.backward()
+        opt.step()
+
+        totaltrainloss += loss.item()
+    return model, totaltrainloss
+
+
+def val_epoch(model, valdataloader, lossfn, device):
+    model.eval()
+    totalvalloss = 0
+    with no_grad():
+            for x, y in tqdm(valdataloader):
+                x, y = x.to(device, dtype=float32), y.to(device, dtype=float32)
+                pred = model(x)
+                totalvalloss += lossfn(pred, y).item()
+    return model, totalvalloss
+
+
+def train_model(model, train_data, val_data ,lr_arr, device, weight_decay=0.0001, patience=3):
+    """Full Training function for the nix
+
+    Args:
+        model (torch.nn.Module): nix model
+        train_data (torch.utils.data.DataLoader): DataLoader containing the train data
+        val_data (torch.utils.data.DataLoader): DataLoader containing the val data
+        lr_arr (list or int): list or int containing the learning rate for training
+        device (torch.device): Device for training
+        weight_decay (float, optional): l2 regularization. Defaults to 0.0001.
+        patience (int, optional): patience for the early_stopper. Defaults to 3
+
+    Returns:
+        torch.nn.Module: A trained model
+    """
+    loss = focal_loss()
+    for lr in lr_arr:
+        print("[INFO] Training with lr: {}".format(lr))
+        optim = Adam(model.parameters(), lr, weight_decay=weight_decay)
+        epoch = 0
+        early_stopper = EarlyStopper(patience=patience)
+        while True:
+            epoch += 1
+            print("[INFO] Epoch: {}".format(epoch))
+            model, train_loss = train_epoch(model, train_data, loss, optim, device)
+            print("Train loss: {:.6f}".format(train_loss))
+            model, val_loss = val_epoch(model, val_data, loss, device)
+            print("Val loss: {:.6f}".format(val_loss))
+            if early_stopper.early_stop(val_loss, model):
+                model = early_stopper.model
+                print("[INFO] End training with lr {} at epoch {}".format(lr, epoch))
+                break
+    return model
