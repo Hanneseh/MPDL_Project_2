@@ -1,4 +1,28 @@
 # Tasks:
+- **Train baseline**: 
+  - Use pretrained FCN model from torchvision
+  - input: realfake images
+    - without additional noise input?
+  - target: masked image
+  - Goal: Predict the inpainted area just by looking at the image
+
+- **Prdouce additional data**:
+  - implement relaistic mask generation process
+    - Possibly by using YOLO to detect objects and then segmenting them out
+    - Possibly by generating random polygons
+  - generate image with stable diffusion --> fakefake images
+  - use variational autoencoder to produce encoded-decoded image
+  - fuse fakefake with encoded-decoded image where mask is at
+
+- **implement NIX-NET from paper**
+  - implement NIX-NET from paper "Noise doesn't lie" paper
+  - train the model:
+    - input: realfake images
+    - input: image noise
+    - target: masked image
+
+Evaluation metric: IoU
+Loss function: Focal loss
 
 
 
