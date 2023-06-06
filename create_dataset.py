@@ -19,7 +19,7 @@ class data(Dataset):
 
     def __getitem__(self, index):
         realfake = Image.open(self.realfake[index - 1]).convert("RGB")
-        realfake = self.transform(realfake)
+        realfake = self.transform(realfake)/255
         mask = Image.open(self.mask[index - 1]).convert("L")
         mask = self.transform(mask)
         return realfake, mask

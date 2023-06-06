@@ -1,5 +1,5 @@
 import numpy as np
-from torchvision.ops import focal_loss
+from torchvision.ops.focal_loss import sigmoid_focal_loss
 from torch import float32, no_grad
 from torch.optim import Adam
 from tqdm import tqdm
@@ -25,7 +25,7 @@ class EarlyStopper:
         return False
     
 
-def train_epoch(model, dataloader, lossfn, opt, device):
+def train_epoch(model, dataloader, opt, device):
     model.train()
     totaltrainloss = 0
     for x, y in tqdm(dataloader):
@@ -33,7 +33,8 @@ def train_epoch(model, dataloader, lossfn, opt, device):
 
         opt.zero_grad()
         pred = model(x)
-        loss = lossfn(pred, y)
+        loss = sigmoid_focal_loss(pred, y, reduction="sum")
+
         loss.backward()
         opt.step()
 
@@ -41,15 +42,15 @@ def train_epoch(model, dataloader, lossfn, opt, device):
     return model, totaltrainloss
 
 
-def val_epoch(model, valdataloader, lossfn, device):
+def val_epoch(model, valdataloader, device):
     model.eval()
     totalvalloss = 0
     with no_grad():
             for x, y in tqdm(valdataloader):
                 x, y = x.to(device, dtype=float32), y.to(device, dtype=float32)
                 pred = model(x)
-                totalvalloss += lossfn(pred, y).item()
-    return model, totalvalloss
+                totalvalloss += sigmoid_focal_loss(pred, y, reduction="sum").item()
+    return totalvalloss
 
 
 def train_model(model, train_data, val_data ,lr_arr, device, weight_decay=0.0001, patience=3):
@@ -67,7 +68,6 @@ def train_model(model, train_data, val_data ,lr_arr, device, weight_decay=0.0001
     Returns:
         torch.nn.Module: A trained model
     """
-    loss = focal_loss()
     for lr in lr_arr:
         print("[INFO] Training with lr: {}".format(lr))
         optim = Adam(model.parameters(), lr, weight_decay=weight_decay)
@@ -76,9 +76,9 @@ def train_model(model, train_data, val_data ,lr_arr, device, weight_decay=0.0001
         while True:
             epoch += 1
             print("[INFO] Epoch: {}".format(epoch))
-            model, train_loss = train_epoch(model, train_data, loss, optim, device)
+            model, train_loss = train_epoch(model, train_data, optim, device)
             print("Train loss: {:.6f}".format(train_loss))
-            model, val_loss = val_epoch(model, val_data, loss, device)
+            val_loss = val_epoch(model, val_data, device)
             print("Val loss: {:.6f}".format(val_loss))
             if early_stopper.early_stop(val_loss, model):
                 model = early_stopper.model
