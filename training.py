@@ -3,6 +3,7 @@ from torchvision.ops.focal_loss import sigmoid_focal_loss
 from torch import float32, no_grad
 from torch.optim import Adam
 from tqdm import tqdm
+from srm import srm
 
 
 class EarlyStopper:
@@ -32,7 +33,7 @@ def train_epoch(model, dataloader, opt, device):
         x, y = x.to(device, dtype=float32), y.to(device, dtype=float32)
 
         opt.zero_grad()
-        pred = model(x)
+        pred = model(x, srm(x, device))
         loss = sigmoid_focal_loss(pred, y, reduction="sum")
 
         loss.backward()
@@ -48,7 +49,7 @@ def val_epoch(model, valdataloader, device):
     with no_grad():
             for x, y in tqdm(valdataloader):
                 x, y = x.to(device, dtype=float32), y.to(device, dtype=float32)
-                pred = model(x)
+                pred = model(x, srm(x, device))
                 totalvalloss += sigmoid_focal_loss(pred, y, reduction="sum").item()
     return totalvalloss
 

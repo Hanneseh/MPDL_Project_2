@@ -1,38 +1,7 @@
 import numpy as np
-from torch import cat, tensor, float32
+from torch import cat
 from torch import nn  as nn
 from torchinfo import summary
-
-#TODO: test SRM filter. Weights should not change with training
-class SRM(nn.Module):
-    def __init__(self):
-        super(SRM, self).__init__()
-        self.filter1 =  np.asarray([[0, 0, 0, 0, 0],
-                                    [0, -1, 2, -1, 0],
-                                    [0, 2, -4, 2, 0],
-                                    [0, -1, 2, -1, 0],
-                                    [0, 0, 0, 0, 0]]) * 4.0
-        self.filter2 =  np.asarray([[-1, 2, -2, 2, -1],
-                                    [2, -6, 8, -6, 2],
-                                    [-2, 8, -12, 8, -2],
-                                    [2, -6, 8, -6, 2],
-                                    [-1, 2, -2, 2, -1]]) * 12.0
-        self.filter3 =  np.asarray([[0, 0, 0, 0, 0],
-                                    [0, 0, 0, 0, 0],
-                                    [0, 1, -2, 1, 0],
-                                    [0, 0, 0, 0, 0],
-                                    [0, 0, 0, 0, 0]]) * 2.0
-        self.filters =   tensor(np.asarray([
-            [[self.filter1, self.filter1, self.filter1],
-            [self.filter2, self.filter2, self.filter2],
-            [self.filter3, self.filter3, self.filter3]]
-        ]), dtype=float32)
-        
-        self.srm = nn.Conv2d(3, 3, kernel_size=5, stride=1, padding="same", bias=False)
-        self.srm.weight == nn.Parameter(self.filters, requires_grad=False)
-        
-    def forward(self, x):
-        return self.srm(x)
 
 
 #TODO: Test proposed Residual Block with full activation
@@ -195,8 +164,6 @@ class NIX(nn.Module):
         self.img_height_3 = int(np.floor((self.img_height_2-1)/4 + 1))
         self.img_height_4 = int(np.floor((self.img_height_3-1)/4 + 1))
 
-        self.srm = SRM()
-
         self.res_1_x = ResidualBlock(3, 128)
         self.res_2_x = ResidualBlock(128, 256)
         self.res_3_x = ResidualBlock(256, 512)
@@ -226,10 +193,7 @@ class NIX(nn.Module):
 
         self.sigmoid = nn.Sigmoid()
 
-    def forward(self, x):
-        #Generating noise residual
-        r = self.srm(x)
-
+    def forward(self, x, r):
         #Feature Extraction
         x = self.res_1_x(x)
         x_1 = x
@@ -264,7 +228,7 @@ class NIX(nn.Module):
 if __name__ == "__main__":
     img_width, img_height = 512, 512
     nix = NIX(img_width, img_height)
-    print(summary(nix, (3, img_width, img_height), batch_dim = 0, 
+    print(summary(nix, [(3, img_width, img_height), (3, img_width, img_height)], batch_dim = 0, 
                   col_names = ("input_size", "output_size", "num_params", "kernel_size", "mult_adds"), 
                   verbose=0))
     

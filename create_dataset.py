@@ -2,6 +2,7 @@ from torch.utils.data import Dataset
 from torchvision.transforms import Compose, PILToTensor
 from PIL import Image
 from os import listdir
+import numpy as np
             
 
 class data(Dataset):
@@ -18,10 +19,13 @@ class data(Dataset):
         self.transform = Compose([PILToTensor()])
 
     def __getitem__(self, index):
-        realfake = Image.open(self.realfake[index - 1]).convert("RGB")
-        realfake = self.transform(realfake)/255
+        realfake = Image.open(self.realfake[index - 1])
+        realfake = np.array(realfake, dtype=np.float32)
+        realfake = realfake/255
+        realfake = np.reshape(realfake, (3, 512, 512))
         mask = Image.open(self.mask[index - 1]).convert("L")
-        mask = self.transform(mask)
+        mask = np.array(mask, dtype=np.float32)
+        mask = np.reshape(mask, (1, 512, 512))
         return realfake, mask
 
     def __len__(self):
