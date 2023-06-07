@@ -34,23 +34,26 @@ def train_epoch(model, dataloader, opt, device):
 
         opt.zero_grad()
         pred = model(x, srm(x, device))
-        loss = sigmoid_focal_loss(pred, y, reduction="sum")
+        loss = sigmoid_focal_loss(pred, y, reduction="mean")
 
         loss.backward()
         opt.step()
 
         totaltrainloss += loss.item()
+
+    totaltrainloss = totaltrainloss/len(dataloader)
     return model, totaltrainloss
 
 
-def val_epoch(model, valdataloader, device):
+def val_epoch(model, dataloader, device):
     model.eval()
     totalvalloss = 0
     with no_grad():
-            for x, y in tqdm(valdataloader):
-                x, y = x.to(device, dtype=float32), y.to(device, dtype=float32)
-                pred = model(x, srm(x, device))
-                totalvalloss += sigmoid_focal_loss(pred, y, reduction="sum").item()
+        for x, y in tqdm(dataloader):
+            x, y = x.to(device, dtype=float32), y.to(device, dtype=float32)
+            pred = model(x, srm(x, device))
+            totalvalloss += sigmoid_focal_loss(pred, y, reduction="mean").item()
+    totalvalloss = totalvalloss/len(dataloader)
     return totalvalloss
 
 

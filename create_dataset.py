@@ -26,6 +26,7 @@ class data(Dataset):
         mask = Image.open(self.mask[index - 1]).convert("L")
         mask = np.array(mask, dtype=np.float32)
         mask = np.reshape(mask, (1, 512, 512))
+        mask = mask/255
         return realfake, mask
 
     def __len__(self):
