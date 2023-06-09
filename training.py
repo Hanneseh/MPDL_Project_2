@@ -57,14 +57,14 @@ def val_epoch(model, dataloader, device):
     return totalvalloss
 
 
-def train_model(model, train_data, val_data ,lr_arr, device, weight_decay=0.0001, patience=3):
+def train_model(model, train_data, val_data ,lr, device, weight_decay=0.0005, patience=3):
     """Full Training function for the nix
 
     Args:
         model (torch.nn.Module): nix model
         train_data (torch.utils.data.DataLoader): DataLoader containing the train data
         val_data (torch.utils.data.DataLoader): DataLoader containing the val data
-        lr_arr (list or int): list or int containing the learning rate for training
+        lr (int): learning rate for training
         device (torch.device): Device for training
         weight_decay (float, optional): l2 regularization. Defaults to 0.0001.
         patience (int, optional): patience for the early_stopper. Defaults to 3
@@ -72,20 +72,18 @@ def train_model(model, train_data, val_data ,lr_arr, device, weight_decay=0.0001
     Returns:
         torch.nn.Module: A trained model
     """
-    for lr in lr_arr:
-        print("[INFO] Training with lr: {}".format(lr))
-        optim = Adam(model.parameters(), lr, weight_decay=weight_decay)
-        epoch = 0
-        early_stopper = EarlyStopper(patience=patience)
-        while True:
-            epoch += 1
-            print("[INFO] Epoch: {}".format(epoch))
-            model, train_loss = train_epoch(model, train_data, optim, device)
-            print("Train loss: {:.6f}".format(train_loss))
-            val_loss = val_epoch(model, val_data, device)
-            print("Val loss: {:.6f}".format(val_loss))
-            if early_stopper.early_stop(val_loss, model):
-                model = early_stopper.model
-                print("[INFO] End training with lr {} at epoch {}".format(lr, epoch))
-                break
-    return model
+    print("[INFO] Training with lr: {}".format(lr))
+    optim = Adam(model.parameters(), lr, weight_decay=weight_decay)
+    epoch = 0
+    early_stopper = EarlyStopper(patience=patience)
+    while True:
+        epoch += 1
+        print("[INFO] Epoch: {}".format(epoch))
+        model, train_loss = train_epoch(model, train_data, optim, device)
+        print("Train loss: {:.6f}".format(train_loss))
+        val_loss = val_epoch(model, val_data, device)
+        print("Val loss: {:.6f}".format(val_loss))
+        if early_stopper.early_stop(val_loss, model):
+            print("[INFO] End training with lr {} at epoch {}".format(lr, epoch))
+            break
+    return early_stopper.min_model
