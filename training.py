@@ -4,6 +4,7 @@ from torch import float32, no_grad
 from torch.optim import Adam
 from tqdm import tqdm
 from srm import srm
+import matplotlib.pyplot as plt
 
 
 class EarlyStopper:
@@ -45,19 +46,47 @@ def train_epoch(model, dataloader, opt, device):
     return model, totaltrainloss
 
 
+#Pauls
+# def val_epoch(model, dataloader, device):
+#     model.eval()
+#     totalvalloss = 0
+#     with no_grad():
+#         for x, y in tqdm(dataloader):
+#             x, y = x.to(device, dtype=float32), y.to(device, dtype=float32)
+#             pred = model(x, srm(x, device))
+#             totalvalloss += sigmoid_focal_loss(pred, y, reduction="mean").item()
+
+#     totalvalloss = totalvalloss/len(dataloader)
+#     return totalvalloss
+
+
+def iou(pred, target):
+    intersection = (pred * target).sum()
+    union = pred.sum() + target.sum() - intersection
+    iou = intersection / (union + 1e-7)  # Add a small value to avoid division by zero
+    return iou
+
+
 def val_epoch(model, dataloader, device):
     model.eval()
     totalvalloss = 0
+    totaliou = 0
     with no_grad():
         for x, y in tqdm(dataloader):
             x, y = x.to(device, dtype=float32), y.to(device, dtype=float32)
             pred = model(x, srm(x, device))
-            totalvalloss += sigmoid_focal_loss(pred, y, reduction="mean").item()
-    totalvalloss = totalvalloss/len(dataloader)
-    return totalvalloss
+            loss = sigmoid_focal_loss(pred, y, reduction="mean")
+            iou_score = iou(pred > 0.5, y > 0.5)  # Use a threshold of 0.5 for binarization
+
+            totalvalloss += loss.item()
+            totaliou += iou_score.item()
+
+    totalvalloss = totalvalloss / len(dataloader)
+    totaliou = totaliou / len(dataloader)
+    return totalvalloss, totaliou
 
 
-def train_model(model, train_data, val_data ,lr, device, weight_decay=0.0005, patience=3):
+def train_model(model, train_data, val_data, lr, device, num_epochs, weight_decay=0.0005, patience=10):
     """Full Training function for the nix
 
     Args:
@@ -76,14 +105,47 @@ def train_model(model, train_data, val_data ,lr, device, weight_decay=0.0005, pa
     optim = Adam(model.parameters(), lr, weight_decay=weight_decay)
     epoch = 0
     early_stopper = EarlyStopper(patience=patience)
+    train_losses = []
+    val_losses = []
+    IoU_list = []
+
     while True:
         epoch += 1
+
         print("[INFO] Epoch: {}".format(epoch))
         model, train_loss = train_epoch(model, train_data, optim, device)
         print("Train loss: {:.6f}".format(train_loss))
-        val_loss = val_epoch(model, val_data, device)
+        val_loss, IoU = val_epoch(model, val_data, device)
         print("Val loss: {:.6f}".format(val_loss))
+
+        #save losses
+        train_losses.append(train_loss)
+        val_losses.append(val_loss)
+        IoU_list.append(IoU)
+
         if early_stopper.early_stop(val_loss, model):
-            print("[INFO] End training with lr {} at epoch {}".format(lr, epoch))
+            print("[INFO] early_stop: End training with lr {} at epoch {}".format(lr, epoch))
+            model = early_stopper.min_model
             break
-    return early_stopper.min_model
+
+        if num_epochs == epoch: 
+            print("[INFO] epoch_stop: End training with lr {} at epoch {}".format(lr, epoch))
+            model = model
+            break
+
+    #log losses
+    with open("loss.txt", "w") as file:
+        for epoch, train_loss, val_loss, IoU in zip(range(1, epoch+1), train_losses, val_losses, IoU_list):
+            file.write("Epoch {}: Train loss: {}, Val loss: {}, IoU: {}\n".format(epoch, train_loss, val_loss, IoU))
+
+    #Plot Loss-Curve
+    epochs = range(1, epoch+1)
+    plt.plot(epochs, train_losses, label="Train loss")
+    plt.plot(epochs, val_losses, label="Val loss")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.legend()
+    plt.savefig("loss_plot.png")
+    plt.show()
+
+    return model
