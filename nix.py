@@ -195,21 +195,17 @@ class NIX(nn.Module):
 
     def forward(self, x, r):
         #Feature Extraction
-        x = self.res_1_x(x)
-        x_1 = x
-        x = self.res_2_x(x)
-        x_2 = x
-        x = self.res_3_x(x)
+        x_1 = self.res_1_x(x)
+        x_2 = self.res_2_x(x_1)
+        x_3 = self.res_3_x(x_2)
 
-        r = self.res_1_r(r)
-        r_1 = r
-        r = self.res_2_r(r)
-        r_2 = r
-        r = self.res_3_r(r)
+        r_1 = self.res_1_r(r)
+        r_2 = self.res_2_r(r_1)
+        r_3 = self.res_3_r(r_2)
 
         #Multi-Scale Cross Function
-        feature_1_x, feature_2_x, feature_3_x = self.fusion_1(x_1, x_2, x)
-        feature_1_r, feature_2_r, feature_3_r = self.fusion_2(r_1, r_2, r)
+        feature_1_x, feature_2_x, feature_3_x = self.fusion_1(x_1, x_2, x_3)
+        feature_1_r, feature_2_r, feature_3_r = self.fusion_2(r_1, r_2, r_3)
 
         feature_1 = self.conv_1(cat((feature_1_x, feature_1_r), dim=1))
         feature_2 = self.conv_2(cat((feature_2_x, feature_2_r), dim=1))
