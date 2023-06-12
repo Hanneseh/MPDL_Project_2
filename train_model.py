@@ -47,5 +47,5 @@ if __name__== "__main__":
     test_data = data(PATH_TEST)
     test_data = DataLoader(test_data, batch_size=batch_size, num_workers=num_workers, shuffle=True)
 
-    test_loss = val_epoch(model, test_data, device)
-    print("[INFO] Val loss: {:.6f}".format(test_loss))
+    test_loss, test_iou = val_epoch(model, test_data, device)
+    print("[INFO] Test loss: {:.6f}, Test IoU".format(test_loss, test_iou))

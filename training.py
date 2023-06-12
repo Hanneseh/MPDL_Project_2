@@ -43,7 +43,6 @@ def train_epoch(model, dataloader, opt, device):
         totaltrainloss += loss.item()
 
         pred = (output > 0.5).int()
-        print(pred)
         y = (y > 0.5).int()
         total_iou += jaccard_score(y.flatten().cpu().numpy(), pred.flatten().cpu().numpy())
 
