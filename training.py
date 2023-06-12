@@ -3,7 +3,7 @@ from torchvision.ops.focal_loss import sigmoid_focal_loss
 from torch import float32, no_grad
 from torch.optim import Adam
 from tqdm import tqdm
-from srm import srm
+from sklearn.metrics import jaccard_score
 
 
 class EarlyStopper:
@@ -29,32 +29,44 @@ class EarlyStopper:
 def train_epoch(model, dataloader, opt, device):
     model.train()
     totaltrainloss = 0
-    for x, y in tqdm(dataloader):
-        x, y = x.to(device, dtype=float32), y.to(device, dtype=float32)
+    total_iou = 0
+    for x, r, y in tqdm(dataloader):
+        x, r, y = x.to(device, dtype=float32), r.to(device, dtype=float32), y.to(device, dtype=float32)
 
         opt.zero_grad()
-        pred = model(x, srm(x, device))
-        loss = sigmoid_focal_loss(pred, y, reduction="mean")
+        output = model(x, r)
+        loss = sigmoid_focal_loss(output, y, reduction="mean")
 
         loss.backward()
         opt.step()
 
         totaltrainloss += loss.item()
 
+        pred = (output > 0.5).int()
+        print(pred)
+        y = (y > 0.5).int()
+        total_iou += jaccard_score(y.flatten().cpu().numpy(), pred.flatten().cpu().numpy())
+
     totaltrainloss = totaltrainloss/len(dataloader)
-    return model, totaltrainloss
+    total_iou = total_iou / len(dataloader)
+    return model, totaltrainloss, total_iou
 
 
 def val_epoch(model, dataloader, device):
     model.eval()
     totalvalloss = 0
+    total_iou = 0
     with no_grad():
-        for x, y in tqdm(dataloader):
-            x, y = x.to(device, dtype=float32), y.to(device, dtype=float32)
-            pred = model(x, srm(x, device))
-            totalvalloss += sigmoid_focal_loss(pred, y, reduction="mean").item()
+        for x, r, y in tqdm(dataloader):
+            x, r, y = x.to(device, dtype=float32), r.to(device, dtype=float32), y.to(device, dtype=float32)
+            output = model(x, r)
+            totalvalloss += sigmoid_focal_loss(output, y, reduction="mean").item()
+            pred = (output > 0.5).int()
+            y = (y > 0.5).int()
+            total_iou += jaccard_score(y.flatten().cpu().numpy(), pred.flatten().cpu().numpy())
     totalvalloss = totalvalloss/len(dataloader)
-    return totalvalloss
+    total_iou = total_iou / len(dataloader)
+    return totalvalloss, total_iou
 
 
 def train_model(model, train_data, val_data ,lr, device, weight_decay=0.0005, patience=3):
@@ -79,10 +91,10 @@ def train_model(model, train_data, val_data ,lr, device, weight_decay=0.0005, pa
     while True:
         epoch += 1
         print("[INFO] Epoch: {}".format(epoch))
-        model, train_loss = train_epoch(model, train_data, optim, device)
-        print("Train loss: {:.6f}".format(train_loss))
-        val_loss = val_epoch(model, val_data, device)
-        print("Val loss: {:.6f}".format(val_loss))
+        model, train_loss, train_iou = train_epoch(model, train_data, optim, device)
+        print("Train loss: {:.6f}, Train IoU: {:.6f}".format(train_loss, train_iou))
+        val_loss, val_iou = val_epoch(model, val_data, device)
+        print("Val loss: {:.6f}, Val IoU: {:.6f}".format(val_loss, val_iou))
         if early_stopper.early_stop(val_loss, model):
             print("[INFO] End training with lr {} at epoch {}".format(lr, epoch))
             break

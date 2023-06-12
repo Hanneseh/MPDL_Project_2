@@ -36,10 +36,9 @@ class ResidualBlock(nn.Module):
 
         if self.skip is not None:
             identity = self.skip(x)
-        
+
         out += identity
         out = self.relu(out)
-
         return out
 
     
@@ -100,7 +99,8 @@ class Upsample(nn.Module):
         Returns:
             torch.tensor: Prediction of Upsample
         """
-        return self.upsample(x)
+        out = self.upsample(x)
+        return out
 
 
 class Stride(nn.Module):
@@ -127,7 +127,8 @@ class Stride(nn.Module):
         Returns:
             torch.tensor: Prediction of Stride
         """
-        return self.stride(x)
+        out = self.stride(x)
+        return out
 
 
 class FusionModule(nn.Module):
