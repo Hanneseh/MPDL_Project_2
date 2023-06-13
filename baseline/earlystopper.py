@@ -9,6 +9,7 @@ class EarlyStopper:
         self.min_model = None
 
     def early_stop(self, validation_loss, model):
+        print(self.counter)
         if validation_loss < self.min_validation_loss:
             self.min_validation_loss = validation_loss
             self.min_model = model

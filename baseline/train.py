@@ -1,4 +1,3 @@
-import numpy as np
 from tqdm import tqdm
 import torch
 import matplotlib.pyplot as plt
@@ -15,9 +14,6 @@ from  torch.utils.data import Subset
 
 def collate_fn(examples):
     images, masks = zip(*examples)
-
-    # just take the first color channel of the masks (they are all the same)
-    masks = [mask[0] for mask in masks]
 
     # Ensure images always have 3 channels
     images = [img if img.shape[0] == 3 else img.repeat((3, 1, 1)) for img in images]
@@ -133,14 +129,21 @@ def plot_and_save(train_iou, eval_iou, train_loss, eval_loss, parent_folder, epo
     plt.savefig(f"{parent_folder}/plot_epoch_{epoch_nr}.png")
 
 # Parameters
-data_dir = "data/laion_subset_10k_splits"
-checkpoint_dir = "baseline/checkpoints"
-docs_path = "baseline/docs"
-num_epochs = 200
-batch_size = 8
+data_dir = "/Users/hannesehringfeld/SSD/Uni/DL_praktikum/MPDL_Project_2/data/laion_subset_10k_splits_train"
+checkpoint_dir = "/Users/hannesehringfeld/SSD/Uni/DL_praktikum/MPDL_Project_2/baseline/checkpoints"
+docs_path = "/Users/hannesehringfeld/SSD/Uni/DL_praktikum/MPDL_Project_2/baseline/docs"
+# num_epochs = 200
+# batch_size = 8
+# learning_rate = 0.0001
+# num_workers = 4
+# patience = 10
+
+num_epochs = 1
+batch_size = 3
 learning_rate = 0.0001
-num_workers = 4
-patience = 10
+num_workers = 0
+patience = 0
+
 
 # model
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -149,8 +152,8 @@ model = fcn_resnet50(weights=weights)
 # Modify the output layer
 model.classifier[4] = nn.Conv2d(512, 1, kernel_size=(1, 1), stride=(1, 1))
 model.aux_classifier[4] = nn.Conv2d(256, 1, kernel_size=(1, 1), stride=(1, 1))
-path_to_pretrained_weights = "baseline/checkpoints/baseline_epoch_31.pth"
-model.load_state_dict(torch.load(path_to_pretrained_weights))
+# path_to_pretrained_weights = "baseline/checkpoints/baseline_epoch_31.pth"
+# model.load_state_dict(torch.load(path_to_pretrained_weights))
 model = model.to(device)
 
 # datasets
@@ -159,9 +162,9 @@ test_dataset = ImageDataset(os.path.join(data_dir, 'test'))
 val_dataset = ImageDataset(os.path.join(data_dir, 'val'))
 
 # for dev purposes: reduce the number of images in the datasets to only 10
-# train_dataset = Subset(train_dataset, range(5))
-# test_dataset = Subset(test_dataset, range(2))
-# val_dataset = Subset(val_dataset, range(2))
+train_dataset = Subset(train_dataset, range(3))
+test_dataset = Subset(test_dataset, range(1))
+val_dataset = Subset(val_dataset, range(1))
 
 # dataloaders
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, collate_fn=collate_fn)
@@ -173,17 +176,17 @@ criterion = sigmoid_focal_loss
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 stopper = EarlyStopper(patience=patience, min_delta=0)
 
-# # Train the model
-# for epoch in range(num_epochs):
-#     train(epoch, train_loader)
-#     val_loss = val(val_loader)
-#     PATH = checkpoint_dir + '/baseline_epoch_{}.pth'.format(epoch)
-#     torch.save(model.state_dict(), PATH)
-#     plot_and_save(train_iou, eval_iou, train_losses, eval_losses, docs_path, epoch)
-#     if stopper.early_stop(val_loss, model):
-#         model = stopper.min_model
-#         print("early stop")
-#         break
+# Train the model
+for epoch in range(num_epochs):
+    train(epoch, train_loader)
+    val_loss = val(val_loader)
+    PATH = checkpoint_dir + '/baseline_epoch_{}.pth'.format(epoch)
+    torch.save(model.state_dict(), PATH)
+    plot_and_save(train_iou, eval_iou, train_losses, eval_losses, docs_path, epoch)
+    if stopper.early_stop(val_loss, model):
+        model = stopper.min_model
+        print("early stop")
+        break
 
 # safe model state
 PATH = checkpoint_dir + '/baseline_final.pth'
@@ -194,7 +197,3 @@ plot_and_save(train_iou, eval_iou, train_losses, eval_losses, docs_path, epoch)
 print("Test final model on test set")
 test_loss = val(test_loader)
 
-'''
-Test final model on test set
-Val Loss: 0.002 | IoU: 0.828
-'''
