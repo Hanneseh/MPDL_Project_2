@@ -1,4 +1,47 @@
-# Tasks:
+# Status June 13th
+What we have done so far:
+- Baseline is trained and evaluated
+  - Pretrained FCN model from torchvision is used
+  - test IoU is 0.827
+  - Qualitative results are good
+- We have code to produce more realistic masks
+- Nix-Model is imeplemendet but training is not working yet (it does not seem to learn / output is always the same)
+  - SRM seems to be wrong (potential issue)
+
+
+Aktueller Datensatz generierung:
+- original bild: ein generiertes bild das wir nicht haben
+- um **fakefake** bilder zu generieren:
+  - original bild + maske werden in einen Autoencoder gegeben
+  - Das ergebnis des Autoencoders ist das **fakefake** bild
+- um **realfake** bilder zu generieren:
+  - das original bild wird mit der maske und dem prompt des original bildes an stable diffusion gegeben
+  - zurück kommt ein bild **X**: sieht aus wie das original, hat aber veränderte teile in dem bereich der Maske 
+  - Bild **X** wird nach der Maske ausgeschnitten und auf das original bild gelegt --> **realfake** bild
+
+
+Wie wir generieren wollen:
+  - Original bild: bsp. ein coco bild + prompt
+  - Wir generieren eine Maske nach einer von drei Methoden:
+    - Yolo basiert
+    - Random basiert
+    - Resnet panoptic basiert
+  - original bild + maske --> autoencoder --> fakefake bild
+  - original bild, maske, prompt --> stable diffusion --> bild **X**
+  - Bild **X** wird nach der Maske ausgeschnitten und auf das original bild gelegt --> **realfake** bild
+
+**Next steps:**
+- Was sagt baseline wenn wir fakefake bilder als input nehmen?
+- Investigate how blurred masks affect the baseline
+- Fix Noise resediue: Können wir den Noise resediue sehen wie im paper?
+- Fix Nix-Model: Validiere implementierung
+- Train Nix-Model auf den 10k bildern die wir schon haben, wie verhält sich test iou zu der von baseline?
+- Generiere 10k bilder: jeweils: original, fakefake und realfake bilder (+ maske))
+- Train baseline on combined dataset and test it
+- Train Nix-Model on combined dataset and test it
+- What is better? Baseline or Nix-Model?
+
+# Tasks (6.6):
 - **Train baseline**: 
   - Use pretrained FCN model from torchvision
   - input: realfake images
@@ -21,8 +64,8 @@
     - input: image noise
     - target: masked image
 
-Evaluation metric: IoU
-Loss function: Focal loss
+- Evaluation metric: IoU
+- Loss function: Focal loss
 
 
 
