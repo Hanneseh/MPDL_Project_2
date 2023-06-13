@@ -1,9 +1,10 @@
 from torch.utils.data import Dataset
 from torchvision.transforms import Compose, PILToTensor
 from PIL import Image
-from torch import FloatTensor, tensor, float32
+from torch import tensor, float32
 from torch.nn.functional import conv2d
 from os import listdir
+from torchvision.transforms import ToTensor, Compose
 import numpy as np
             
 
@@ -35,25 +36,25 @@ class data(Dataset):
                     [0, 0,-2, 0, 0],
                     [0, 0, 1, 0, 0],
                     [0, 0, 0, 0, 0]]
-        filter1 = np.asarray(filter1, dtype=float) / 4
-        filter2 = np.asarray(filter2, dtype=float) / 12
+        filter1 = np.asarray(filter1, dtype=float) / 12
+        filter2 = np.asarray(filter2, dtype=float) / 4
         filter3 = np.asarray(filter3, dtype=float) / 2
         filters = np.asarray(( [[filter1, filter1, filter1], 
                                 [filter2, filter2, filter2], 
                                 [filter3, filter3, filter3]]))
-        self.filters = FloatTensor(filters)
+        self.filters = tensor(filters, dtype=float32)
+
+        self.transform = Compose([
+              ToTensor()
+            ])
 
 
     def __getitem__(self, index):
-        realfake = Image.open(self.realfake[index - 1])
-        realfake = np.asarray(realfake, dtype=np.float32)
-        residual = self.SRM([realfake])
-        realfake = realfake/255
-        realfake = np.reshape(realfake, (3, 512, 512))
+        realfake = Image.open(self.realfake[index - 1]).convert("RGB")
+        residual = self.SRM([np.asarray(realfake, dtype=np.float32)])
+        realfake = self.transform(realfake)
         mask = Image.open(self.mask[index - 1]).convert("L")
-        mask = np.asarray(mask, dtype=np.float32)
-        mask = np.reshape(mask, (1, 512, 512))
-        mask = mask/255
+        mask = self.transform(mask)
         return realfake, residual, mask
 
     def __len__(self):

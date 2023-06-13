@@ -24,7 +24,7 @@ if __name__== "__main__":
 
     #Set Parameters for creating the Dataset
     num_workers = 5
-    batch_size = 8
+    batch_size = 1
 
     # Set Parameters for model
     img_width, img_height = 512, 512
