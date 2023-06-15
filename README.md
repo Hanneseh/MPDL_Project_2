@@ -1,13 +1,55 @@
-# Tasks 15.06
-- Was sagt baseline wenn wir fakefake bilder als input nehmen?
-- Investigate how blurred masks affect the baseline
-- Fix Noise resediue: Können wir den Noise resediue sehen wie im paper?
-- Fix Nix-Model: Validiere implementierung
-- Train Nix-Model auf den 10k bildern die wir schon haben, wie verhält sich test iou zu der von baseline?
-- Generiere 10k bilder: jeweils: original, fakefake und realfake bilder (+ maske))
-- Train baseline on combined dataset and test it
-- Train Nix-Model on combined dataset and test it
-- What is better? Baseline or Nix-Model?
+# Task Re-Definition and documentation (15.06)
+
+## Task 1: Examine Baseline Performance with Different Inputs
+- Investigate how blurred masks affect the performance of the baseline model.
+  - The processing of the during training affects the later performance of the model. Mask handling ways:
+    - 1. No specific handling of the mask, the mask image was loaded, one channel was extracted and treaded as a binary mask: test IoU 0.827
+    - 2. Everything that is not 0 in the mask image will become 1 in the mask: test IoU 0.824
+    - 3. Everything that is not 255 in the mask image will become 0 in the mask: **test IoU 0.944**
+- Investigate how the baseline responds when 'fakefake' images are used as input.
+  - The model still predicts very accuratly the mask area. To interpret this, we need to understand what is going on when inputting the mask and original image into the autoencoder to produce the fakefake images.
+  - It seems like the Step to inpaint the mask via stable diffusion is not necessary in order to produce more data.
+  - Next we can try to train on fakefake and the mask and see if we get comparable results to the baseline.
+
+## Task 2: Dataset Generation
+- Generate 10,000 images, each including 'original', 'fakefake', and 'realfake' images along with their corresponding masks.
+
+## Task 3: Baseline training experiments to understand data effects
+- Train on realfake:
+  - How does it perform when evaluated on fakefake images?
+  - How does it perform when evaluated on realfake images?
+    - test IoU 0.944 (mask handling 3, on laion test set)
+  - How does it perform when evaluated on output images?
+- Train on fakefakes: 
+  - How does it perform when evaluated on fakefake images?
+  - How does it perform when evaluated on realfake images?
+  - How does it perform when evaluated on output images?
+- Train on inpainted output (without copying the inpainting to original image):
+  - How does it perform when evaluated on fakefake images?
+  - How does it perform when evaluated on realfake images?
+  - How does it perform when evaluated on output images?
+
+## Task 4: Experimentation with Pre-Trained Visual Transformer (ViT) Based Models
+- Train a pre-trained Visual Transformer (ViT) based model, possibly the Masked Autoencoder version (MAE-ViT) available on Huggingface, to understand how its attention mechanism improves or hampers inpainting detection.
+- Compare the performance of the ViT based model with the baseline and Nix-Model.
+
+## Task 5: Validate generation of (high-frequency) Noise Residue
+- Identify if we can visually perceive the noise residue as illustrated in the reference paper. And if so, is this the right input to the model? Denis thinks yes, the equation in the paper seems off.
+
+## Task 6: Nix-Model Validation and Training
+- Validate the current implementation of the Nix-Model.
+- Train the Nix-Model using the available 10,000 images. Compare its test IOU performance with the baseline.
+
+## Task 7: Training and Testing Models on Combined Dataset
+- Train the baseline model on the combined dataset and evaluate its performance.
+- Similarly, train the Nix-Model on the combined dataset and evaluate its performance.
+- Train the ViT based model on the combined dataset and evaluate its performance.
+- Compare the performance of the three models.
+
+## Task 8: Model Extrapolation
+- Investigate how well the trained model extrapolates to other inpainting models. For instance, if a model is trained on SD1.5 data, can it detect when SD2.1 or Kandinsky was used for inpainting?
+
+
 
 # Status June 13th
 What we have done so far:
@@ -18,7 +60,6 @@ What we have done so far:
 - We have code to produce more realistic masks
 - Nix-Model is imeplemendet but training is not working yet (it does not seem to learn / output is always the same)
   - SRM seems to be wrong (potential issue)
-
 
 ## Current Methodology for Dataset Generation:
 
@@ -51,6 +92,27 @@ A mask is generated using one of three methods:
 1. The original image, along with the mask and the associated prompt, is subjected to a Stable Diffusion method.
 2. The resulting image is an image **X**, which looks similar to the original but has altered areas within the mask region.
 3. This image **X** is cropped along the mask and superimposed onto the original image to produce the **realfake** image.
+
+## Tasks 13.06
+- Was sagt baseline wenn wir fakefake bilder als input nehmen?
+- Investigate how blurred masks affect the baseline
+- Fix Noise resediue: Können wir den Noise resediue sehen wie im paper?
+- Fix Nix-Model: Validiere implementierung
+- Train Nix-Model auf den 10k bildern die wir schon haben, wie verhält sich test iou zu der von baseline?
+- Generiere 10k bilder: jeweils: original, fakefake und realfake bilder (+ maske))
+- Train baseline on combined dataset and test it
+- Train Nix-Model on combined dataset and test it
+- What is better? Baseline or Nix-Model?
+
+**e-mail 13.06**
+I was checking the NIX paper again and I'm still not sure why they chose to write down R_i like in Eq. 3 but I think what R_i should be is the (high-frequency) noise content of the image, like shown in the images as well.
+I also wanted to add that it would be cool to try a pre-trained visual transformer (ViT) based model (maybe the masked autoencoder version, MAE-ViT, it's on huggingface) since its attention could enable better comparisons across the entire image (but it could also be disadvantageous in other respects, like the larger number of parameters).
+
+Regarding the questions that we would like to answer, you should eventually run experiments including the following (it's mostly a summary of what we discussed, plus a few additional points):
+1. NIX vs simple FCN baseline (vs fine-tuned ViT baseline)
+2. using fake fake (which would actually be similar to NIX's "universal" data generation) vs real fakes.
+3. I'm also really curious how training using the inpainted output directly works (so without pasting the inpainted region into the original image). If you train like this, how does it work on fake-fakes and real-fakes?
+4. how well does the trained model extrapolate to other inpainting models? For example, can your model trained on SD1.5 data detect when SD2.1 or Kandinsky was used for inpainting?
 
 
 # Tasks (6.6):
