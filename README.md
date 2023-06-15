@@ -15,7 +15,7 @@
 - Generate 10,000 images, each including 'original', 'fakefake', and 'realfake' images along with their corresponding masks.
 
 ## Task 3: Baseline training experiments to understand data effects
-- Train on realfake:
+- Train on realfake (10k laion):
   - How does it perform when evaluated on fakefake images?
   - How does it perform when evaluated on realfake images?
     - test IoU 0.944 (mask handling 3, on laion test set)
