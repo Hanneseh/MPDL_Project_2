@@ -19,7 +19,9 @@ class data(Dataset):
         self.datapath = datapath
         self.realfake, self.mask = self.returnpaths()
         self.length = len(self.mask)
-        self.transform = Compose([PILToTensor()])
+        self.transform = Compose([
+              ToTensor()
+            ])
 
         filter1 = [[-1, 2, -2, 2, -1],
                     [2, -6, 8, -6, 2],
@@ -44,15 +46,12 @@ class data(Dataset):
                                 [filter3, filter3, filter3]]))
         self.filters = tensor(filters, dtype=float32)
 
-        self.transform = Compose([
-              ToTensor()
-            ])
-
 
     def __getitem__(self, index):
         realfake = Image.open(self.realfake[index - 1]).convert("RGB")
         residual = self.SRM([np.asarray(realfake, dtype=np.float32)])
         realfake = self.transform(realfake)
+        residual = realfake - residual
         mask = Image.open(self.mask[index - 1]).convert("L")
         mask = self.transform(mask)
         return realfake, residual, mask
