@@ -1,3 +1,14 @@
+# Tasks 15.06
+- Was sagt baseline wenn wir fakefake bilder als input nehmen?
+- Investigate how blurred masks affect the baseline
+- Fix Noise resediue: Können wir den Noise resediue sehen wie im paper?
+- Fix Nix-Model: Validiere implementierung
+- Train Nix-Model auf den 10k bildern die wir schon haben, wie verhält sich test iou zu der von baseline?
+- Generiere 10k bilder: jeweils: original, fakefake und realfake bilder (+ maske))
+- Train baseline on combined dataset and test it
+- Train Nix-Model on combined dataset and test it
+- What is better? Baseline or Nix-Model?
+
 # Status June 13th
 What we have done so far:
 - Baseline is trained and evaluated
@@ -9,37 +20,38 @@ What we have done so far:
   - SRM seems to be wrong (potential issue)
 
 
-Aktueller Datensatz generierung:
-- original bild: ein generiertes bild das wir nicht haben
-- um **fakefake** bilder zu generieren:
-  - original bild + maske werden in einen Autoencoder gegeben
-  - Das ergebnis des Autoencoders ist das **fakefake** bild
-- um **realfake** bilder zu generieren:
-  - das original bild wird mit der maske und dem prompt des original bildes an stable diffusion gegeben
-  - zurück kommt ein bild **X**: sieht aus wie das original, hat aber veränderte teile in dem bereich der Maske 
-  - Bild **X** wird nach der Maske ausgeschnitten und auf das original bild gelegt --> **realfake** bild
+## Current Methodology for Dataset Generation:
 
+- **Original Image**: This refers to a specially generated image that is only available to Denis.
 
-Wie wir generieren wollen:
-  - Original bild: bsp. ein coco bild + prompt
-  - Wir generieren eine Maske nach einer von drei Methoden:
-    - Yolo basiert
-    - Random basiert
-    - Resnet panoptic basiert
-  - original bild + maske --> autoencoder --> fakefake bild
-  - original bild, maske, prompt --> stable diffusion --> bild **X**
-  - Bild **X** wird nach der Maske ausgeschnitten und auf das original bild gelegt --> **realfake** bild
+**Generation of "fakefake" Images**:
+1. A combination of the original image and a mask is input into an Autoencoder.
+2. The resulting image from the Autoencoder is the so-called **fakefake** image.
 
-**Next steps:**
-- Was sagt baseline wenn wir fakefake bilder als input nehmen?
-- Investigate how blurred masks affect the baseline
-- Fix Noise resediue: Können wir den Noise resediue sehen wie im paper?
-- Fix Nix-Model: Validiere implementierung
-- Train Nix-Model auf den 10k bildern die wir schon haben, wie verhält sich test iou zu der von baseline?
-- Generiere 10k bilder: jeweils: original, fakefake und realfake bilder (+ maske))
-- Train baseline on combined dataset and test it
-- Train Nix-Model on combined dataset and test it
-- What is better? Baseline or Nix-Model?
+**Generation of "realfake" Images**:
+1. The original image, along with the mask and the associated prompt, is subjected to a Stable Diffusion method.
+2. The resulting image is an image **X**, which looks similar to the original but has altered areas within the mask region.
+3. This image **X** is cropped along the mask and superimposed onto the original image to produce the **realfake** image.
+
+## Planned Process for Dataset Generation:
+
+- **Original Image**: For instance, an image from the COCO dataset, along with an associated prompt.
+
+**Generation of a Mask**:
+A mask is generated using one of three methods:
+1. YOLO-based
+2. Random-based
+3. ResNet Panoptic-based
+
+**Generation of "fakefake" Images**:
+1. A combination of the original image and a mask is input into an Autoencoder.
+2. The resulting image from the Autoencoder is the so-called **fakefake** image.
+
+**Generation of "realfake" Images**:
+1. The original image, along with the mask and the associated prompt, is subjected to a Stable Diffusion method.
+2. The resulting image is an image **X**, which looks similar to the original but has altered areas within the mask region.
+3. This image **X** is cropped along the mask and superimposed onto the original image to produce the **realfake** image.
+
 
 # Tasks (6.6):
 - **Train baseline**: 
