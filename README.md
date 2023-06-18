@@ -17,6 +17,7 @@
 ## Task 3: Baseline training experiments to understand data effects
 - Train on realfake (10k laion):
   - How does it perform when evaluated on fakefake images?
+    - Test IoU: 0.934 (mask handling 3, on laion test set)
   - How does it perform when evaluated on realfake images?
     - test IoU 0.944 (mask handling 3, on laion test set)
   - How does it perform when evaluated on output images?
