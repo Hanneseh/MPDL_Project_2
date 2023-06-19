@@ -1,7 +1,5 @@
 import numpy as np
 import torch.nn as nn
-import torch.nn.functional as F
-from torchview import draw_graph
 from torch import cat
 from torchinfo import summary
 
@@ -84,7 +82,7 @@ class Upsample(nn.Module):
             out_channels (int): Specifies the output channels fof the Upsample operation
         """
         super(Upsample, self).__init__()
-        self.out_size = out_size
+        self.upsample = nn.Upsample(size=out_size, mode="bilinear")
         self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=1, padding="same")
 
     def forward(self, x):
@@ -96,13 +94,13 @@ class Upsample(nn.Module):
         Returns:
             torch.tensor: Prediction of Upsample
         """
-        x = F.interpolate(x, size=self.out_size, mode="bilinear")
+        x = self.upsample(x)
         x = self.conv(x)
         return x
 
 
 class Stride(nn.Module):
-    def __init__(self, out_size, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels):
         """Implements the stride-2 3x3 operation of the NIX-Net
 
         Args:
@@ -111,7 +109,6 @@ class Stride(nn.Module):
             out_channels (int): Specifies the output channels fof the Stride operation
         """
         super(Stride, self).__init__()
-        self.out_size = out_size
         self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=2, padding=1)
 
     def forward(self, x):
@@ -123,24 +120,22 @@ class Stride(nn.Module):
         Returns:
             torch.tensor: Prediction of Stride
         """
-        x = F.interpolate(x, size=self.out_size, mode="bilinear")
-        x = self.conv(x)
-        return x
+        return self.conv(x)
 
 
 class FusionModule(nn.Module):
-    def __init__(self, width_1, height_1, width_2, height_2, width_3, height_3):
+    def __init__(self, width_1, height_1, width_2, height_2):
         super(FusionModule, self).__init__()
         self.upsample_1 = Upsample([width_1, height_1], 256, 128)
         self.upsample_2 = nn.Sequential(Upsample([width_2, height_2], 512, 256), 
                                         Upsample([width_1, height_1], 256, 128)) 
 
-        self.stride_1 = Stride([width_2*2, height_2*2], 128, 256)
+        self.stride_1 = Stride(128, 256)
         self.upsample_3 = Upsample([width_2, height_2], 512, 256)
 
-        self.stride_2 = nn.Sequential(Stride([width_2, height_2], 128, 256), 
-                                      Stride([width_3*2, height_3*2], 256, 512))
-        self.stride_3 = Stride([int(width_3*2), int(height_3*2)], 256, 512)
+        self.stride_2 = nn.Sequential(Stride(128, 256), 
+                                      Stride(256, 512))
+        self.stride_3 = Stride(256, 512)
     
     def forward(self, feature_1, feature_2, feature_3):
         feature_1_out = feature_1 + self.upsample_1(feature_2) + self.upsample_2(feature_3)
@@ -155,12 +150,10 @@ class NIX(nn.Module):
         self.img_width_1 = img_width
         self.img_width_2 = int(np.floor((self.img_width_1-1)/2 + 1))
         self.img_width_3 = int(np.floor((self.img_width_2-1)/2 + 1))
-        self.img_width_4 = int(np.floor((self.img_width_3-1)/2 + 1))
 
         self.img_height_1 = img_height
         self.img_height_2 = int(np.floor((self.img_height_1-1)/2 + 1))
         self.img_height_3 = int(np.floor((self.img_height_2-1)/2 + 1))
-        self.img_height_4 = int(np.floor((self.img_height_3-1)/2 + 1))
 
         self.res_1_x = ResidualBlock(3, 128, stride=2)
         self.res_2_x = ResidualBlock(128, 256, stride=2)
@@ -170,14 +163,11 @@ class NIX(nn.Module):
         self.res_3_r = ResidualBlock(256, 512, stride=2)
 
         self.fusion_1 = FusionModule(self.img_width_2, self.img_height_2, 
-                                     self.img_width_3, self.img_height_3, 
-                                     self.img_width_4, self.img_height_4)
+                                     self.img_width_3, self.img_height_3)
         self.fusion_2 = FusionModule(self.img_width_2, self.img_height_2, 
-                                     self.img_width_3, self.img_height_3, 
-                                     self.img_width_4, self.img_height_4)
+                                     self.img_width_3, self.img_height_3)
         self.fusion_3 = FusionModule(self.img_width_2, self.img_height_2, 
-                                     self.img_width_3, self.img_height_3, 
-                                     self.img_width_4, self.img_height_4)
+                                     self.img_width_3, self.img_height_3)
 
         self.conv_1 = ConvBlock(256, 128)
         self.conv_2 = ConvBlock(512, 256)
@@ -231,6 +221,4 @@ if __name__ == "__main__":
     print(summary(nix, [(3, img_width, img_height), (3, img_width, img_height)], batch_dim = 0, 
                   col_names = ("input_size", "output_size", "num_params", "kernel_size", "mult_adds"), 
                   verbose=0))
-    
-    model_graph = draw_graph(nix, input_size=[(1,3,img_width,img_height), (1,3,img_width,img_height)], expand_nested=True, device='meta')
-    model_graph.visual_graph
+
