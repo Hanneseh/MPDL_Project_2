@@ -232,3 +232,5 @@ if __name__ == "__main__":
                   col_names = ("input_size", "output_size", "num_params", "kernel_size", "mult_adds"), 
                   verbose=0))
     
+    model_graph = draw_graph(nix, input_size=[(1,3,img_width,img_height), (1,3,img_width,img_height)], expand_nested=True, device='meta')
+    model_graph.visual_graph
