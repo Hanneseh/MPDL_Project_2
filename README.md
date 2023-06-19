@@ -23,7 +23,9 @@
   - How does it perform when evaluated on output images?
 - Train on fakefakes: 
   - How does it perform when evaluated on fakefake images?
+    - Test IoU: 0.950 (mask handling 3, on laion test set)
   - How does it perform when evaluated on realfake images?
+    - Test IoU: 0.783 (mask handling 3, on laion test set)
   - How does it perform when evaluated on output images?
 - Train on inpainted output (without copying the inpainting to original image):
   - How does it perform when evaluated on fakefake images?
