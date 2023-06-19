@@ -1,43 +1,41 @@
 import numpy as np
+import torch.nn as nn
+import torch.nn.functional as F
+from torchview import draw_graph
 from torch import cat
-from torch import nn  as nn
 from torchinfo import summary
 
 
-#TODO: Test proposed Residual Block with full activation
 class ResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels, stride=2):
-        """Implements a single ResidualBlock (original) for the NIX-Net
-
-        Args:
-            in_channels (int): Specifies the input channels for the ResidualBlock
-            out_channels (int): Specifies the output channels for the ResidualBlock
-            stride (int, optional): Stride for the convolutional operations. Defaults to 2.
-        """
         super(ResidualBlock, self).__init__()
-        self.skip = None
-        if stride != 1 or in_channels != out_channels:
-          self.skip = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride*2, bias=False),
-            nn.BatchNorm2d(out_channels))
 
-        self.block = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, stride=2, bias=False),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(),
-            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1, stride=2, bias=False),
-            nn.BatchNorm2d(out_channels))
-        
-        self.relu = nn.ReLU()
-        
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+
+        # If the input and output channels are different, adjust using a 1x1 convolution
+        if stride != 1 or in_channels != out_channels:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm2d(out_channels)
+            )
+        else:
+            self.shortcut = nn.Identity()
+
     def forward(self, x):
         identity = x
-        out = self.block(x)
 
-        if self.skip is not None:
-            identity = self.skip(x)
-        
-        out += identity
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+
+        out += self.shortcut(identity)
         out = self.relu(out)
 
         return out
@@ -86,10 +84,8 @@ class Upsample(nn.Module):
             out_channels (int): Specifies the output channels fof the Upsample operation
         """
         super(Upsample, self).__init__()
-        self.upsample = nn.Sequential(
-            nn.Upsample(size=out_size, mode="bilinear"),
-            nn.Conv2d(in_channels, out_channels, kernel_size=1, padding="same")
-        )
+        self.out_size = out_size
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=1, padding="same")
 
     def forward(self, x):
         """Implements the forward methode of nn.Module
@@ -100,7 +96,9 @@ class Upsample(nn.Module):
         Returns:
             torch.tensor: Prediction of Upsample
         """
-        return self.upsample(x)
+        x = F.interpolate(x, size=self.out_size, mode="bilinear")
+        x = self.conv(x)
+        return x
 
 
 class Stride(nn.Module):
@@ -113,10 +111,8 @@ class Stride(nn.Module):
             out_channels (int): Specifies the output channels fof the Stride operation
         """
         super(Stride, self).__init__()
-        self.stride = nn.Sequential(
-            nn.Upsample(size=out_size, mode="bilinear"),
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=2, padding=1)
-        )
+        self.out_size = out_size
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=2, padding=1)
 
     def forward(self, x):
         """Implements the forward methode of nn.Module
@@ -127,7 +123,9 @@ class Stride(nn.Module):
         Returns:
             torch.tensor: Prediction of Stride
         """
-        return self.stride(x)
+        x = F.interpolate(x, size=self.out_size, mode="bilinear")
+        x = self.conv(x)
+        return x
 
 
 class FusionModule(nn.Module):
@@ -155,21 +153,21 @@ class NIX(nn.Module):
     def __init__(self, img_width, img_height):
         super(NIX, self).__init__()
         self.img_width_1 = img_width
-        self.img_width_2 = int(np.floor((self.img_width_1-1)/4 + 1))
-        self.img_width_3 = int(np.floor((self.img_width_2-1)/4 + 1))
-        self.img_width_4 = int(np.floor((self.img_width_3-1)/4 + 1))
+        self.img_width_2 = int(np.floor((self.img_width_1-1)/2 + 1))
+        self.img_width_3 = int(np.floor((self.img_width_2-1)/2 + 1))
+        self.img_width_4 = int(np.floor((self.img_width_3-1)/2 + 1))
 
         self.img_height_1 = img_height
-        self.img_height_2 = int(np.floor((self.img_height_1-1)/4 + 1))
-        self.img_height_3 = int(np.floor((self.img_height_2-1)/4 + 1))
-        self.img_height_4 = int(np.floor((self.img_height_3-1)/4 + 1))
+        self.img_height_2 = int(np.floor((self.img_height_1-1)/2 + 1))
+        self.img_height_3 = int(np.floor((self.img_height_2-1)/2 + 1))
+        self.img_height_4 = int(np.floor((self.img_height_3-1)/2 + 1))
 
-        self.res_1_x = ResidualBlock(3, 128)
-        self.res_2_x = ResidualBlock(128, 256)
-        self.res_3_x = ResidualBlock(256, 512)
-        self.res_1_r = ResidualBlock(3, 128)
-        self.res_2_r = ResidualBlock(128, 256)
-        self.res_3_r = ResidualBlock(256, 512)
+        self.res_1_x = ResidualBlock(3, 128, stride=2)
+        self.res_2_x = ResidualBlock(128, 256, stride=2)
+        self.res_3_x = ResidualBlock(256, 512, stride=2)
+        self.res_1_r = ResidualBlock(3, 128, stride=2)
+        self.res_2_r = ResidualBlock(128, 256, stride=2)
+        self.res_3_r = ResidualBlock(256, 512, stride=2)
 
         self.fusion_1 = FusionModule(self.img_width_2, self.img_height_2, 
                                      self.img_width_3, self.img_height_3, 
@@ -228,3 +226,5 @@ if __name__ == "__main__":
                   col_names = ("input_size", "output_size", "num_params", "kernel_size", "mult_adds"), 
                   verbose=0))
     
+    model_graph = draw_graph(nix, input_size=[(1,3,img_width,img_height), (1,3,img_width,img_height)], expand_nested=True, device='meta')
+    model_graph.visual_graph
