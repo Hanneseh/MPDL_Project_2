@@ -7,25 +7,26 @@ import torch
 
 if __name__== "__main__":
         
-    # Set device
-    device = "cuda:5"
-    #if torch.backends.mps.is_available():
-    #    device = "mps"
-    #elif torch.cuda_is_available():
-    #    device = "cuda"
+    # # Set device
+    # device = "cpu"
+    # if torch.backends.mps.is_available():
+    #     device = "mps"
+    # elif torch.cuda_is_available():
+    #     device = "cuda"
 
+    device = "cuda:5"
     device = torch.device(device)
 
     #Set Paths
     PATH_TRAIN = "/raid/USERDATA/ganndacw/MPDL/datasets/laion_subset_10k_splits/train"
     PATH_VAL = "/raid/USERDATA/ganndacw/MPDL/datasets/laion_subset_10k_splits/val"
     PATH_TEST = "/raid/USERDATA/ganndacw/MPDL/datasets/laion_subset_10k_splits/test"
-    PATH_SAVE = "nix_training0906.pth"
+    PATH_SAVE = "nix_1906.pth"
 
     #Set Parameters for creating the Dataset
     num_workers = 5
-    batch_size = 16
-    num_epochs = 200
+    batch_size = 10
+    num_epochs = 10
 
     # Set Parameters for model
     img_width, img_height = 512, 512
@@ -48,5 +49,5 @@ if __name__== "__main__":
     test_data = data(PATH_TEST)
     test_data = DataLoader(test_data, batch_size=batch_size, num_workers=num_workers, shuffle=True)
 
-    test_loss, IoU = val_epoch(model, test_data, device)
-    print("[INFO] Test: Val loss: {:.6f}, IoU: {}".format(test_loss, IoU))
+    test_loss, test_iou = val_epoch(model, test_data, device)
+    print("[INFO] Test loss: {:.6f}, Test IoU: {:.6f}".format(test_loss, test_iou))
