@@ -1,6 +1,6 @@
 import numpy as np
 from torchvision.ops.focal_loss import sigmoid_focal_loss
-from torch import float32, no_grad
+from torch import float32, no_grad, sigmoid
 from torch.optim import Adam
 from tqdm import tqdm
 from sklearn.metrics import jaccard_score
@@ -44,8 +44,10 @@ def train_epoch(model, dataloader, opt, device):
 
         totaltrainloss += loss.item()
 
-        pred = (output > 0.5).int()
-        y = (y > 0.5).int()
+
+        pred = (sigmoid(output) > 0.5).int()
+        y = (sigmoid(y) > 0.5).int()
+
         total_iou += jaccard_score(y.flatten().cpu().numpy(), pred.flatten().cpu().numpy())
 
     totaltrainloss = totaltrainloss/len(dataloader)
@@ -62,8 +64,8 @@ def val_epoch(model, dataloader, device):
             x, r, y = x.to(device, dtype=float32), r.to(device, dtype=float32), y.to(device, dtype=float32)
             output = model(x, r)
             totalvalloss += sigmoid_focal_loss(output, y, reduction="mean").item()
-            pred = (output > 0.5).int()
-            y = (y > 0.5).int()
+            pred = (sigmoid(output) > 0.5).int()
+            y = (sigmoid(y) > 0.5).int()
             total_iou += jaccard_score(y.flatten().cpu().numpy(), pred.flatten().cpu().numpy())
     totalvalloss = totalvalloss/len(dataloader)
     total_iou = total_iou / len(dataloader)
@@ -114,7 +116,6 @@ def train_model(model, train_data, val_data ,lr, device, num_epochs, weight_deca
             save_path = "nix_epoch_{}".format(epoch)
             save_name = save_path+".pth"
             torch.save(model.state_dict(), save_name)
-
 
         if early_stopper.early_stop(val_loss, model):
             print("[INFO] early_stop: End training with lr {} at epoch {}".format(lr, epoch))
