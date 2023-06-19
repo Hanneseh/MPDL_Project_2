@@ -26,7 +26,7 @@ class ResidualBlock(nn.Module):
             self.shortcut = nn.Identity()
 
     def forward(self, x):
-        identity = x
+        identity = x.clone()
 
         out = self.conv1(x)
         out = self.bn1(out)
@@ -193,13 +193,19 @@ class NIX(nn.Module):
 
     def forward(self, x, r):
         #Feature Extraction
-        x_1 = self.res_1_x(x)
-        x_2 = self.res_2_x(x_1)
-        x_3 = self.res_3_x(x_2)
+        x = self.res_1_x(x)
+        x_1 = x.clone()
+        x = self.res_2_x(x)
+        x_2 = x.clone()
+        x = self.res_3_x(x)
+        x_3 = x.clone()
 
-        r_1 = self.res_1_r(r)
-        r_2 = self.res_2_r(r_1)
-        r_3 = self.res_3_r(r_2)
+        r = self.res_1_r(r)
+        r_1 = r.clone()
+        r = self.res_2_r(r)
+        r_2 = r.clone()
+        r = self.res_3_r(r)
+        r_3 = r.clone()
 
         #Multi-Scale Cross Function
         feature_1_x, feature_2_x, feature_3_x = self.fusion_1(x_1, x_2, x_3)
@@ -215,7 +221,7 @@ class NIX(nn.Module):
         out = cat((feature_1, self.upsample_1(feature_2), self.upsample_2(feature_3)), dim=1)
         out = self.conv_4(out)
         out = self.upsample_3(out)
-        out = self.sigmoid(out)
+        #out = self.sigmoid(out)
         return out
 
 
@@ -226,5 +232,3 @@ if __name__ == "__main__":
                   col_names = ("input_size", "output_size", "num_params", "kernel_size", "mult_adds"), 
                   verbose=0))
     
-    model_graph = draw_graph(nix, input_size=[(1,3,img_width,img_height), (1,3,img_width,img_height)], expand_nested=True, device='meta')
-    model_graph.visual_graph
