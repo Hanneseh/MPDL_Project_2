@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 from torch import float32, tensor
-from torch.nn.functional import conv2d
+from torch.nn.functional import conv2d, normalize
 from torchvision.transforms import functional as F
 
 def collate_fn(examples):
@@ -38,7 +38,7 @@ class ImageDataset(Dataset):
         self.mask_files = []
 
         for file_name in os.listdir(dir_path):
-            if file_name.endswith('.realfake.webp'):
+            if file_name.endswith('.fakefake.webp'):
                 self.image_files.append(os.path.join(dir_path, file_name))
             elif file_name.endswith('.mask.webp'):
                 self.mask_files.append(os.path.join(dir_path, file_name))
@@ -78,9 +78,6 @@ class ImageDataset(Dataset):
         op1 = conv2d(input, self.filters, stride=1, padding=2)
 
         op1 = op1[0]
-        op1 = np.round(op1)
-        op1[op1 > 2] = 2
-        op1[op1 < -2] = -2
         return op1
 
     def __len__(self):
@@ -91,7 +88,7 @@ class ImageDataset(Dataset):
         mask_path = self.mask_files[idx]
 
         image = Image.open(image_path).convert('RGB')
-        residual = self.SRM([np.asarray(image, dtype=np.float32)])
+        srm = self.SRM([np.asarray(image, dtype=np.float32)])
         mask = Image.open(mask_path).convert('RGB')
 
         # convert to numpy array
@@ -104,11 +101,14 @@ class ImageDataset(Dataset):
         transform = transforms.ToTensor()
         image = transform(image)
 
+        residual = image - srm
+        residual[residual > 1] = 1
+        residual[residual < -1] = -1
+        residual = (residual - torch.min(residual)) / (torch.max(residual) - torch.min(residual))
         # Convert to tensor
         mask = torch.from_numpy(mask)
         # Change the data type of mask to Float
         mask = mask.float()
-
         return image, residual, mask
     
 
