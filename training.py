@@ -72,7 +72,7 @@ def val_epoch(model, dataloader, device):
     return totalvalloss, total_iou
 
 
-def train_model(model, train_data, val_data ,lr, device, num_epochs, weight_decay=0.0005, patience=5, save_intervall=10):
+def train_model(model, train_data, val_data ,lr, device, num_epochs, weight_decay=0.001, patience=5, save_intervall=10):
     """Full Training function for the nix
 
     Args:
