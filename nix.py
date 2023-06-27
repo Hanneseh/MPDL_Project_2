@@ -124,18 +124,30 @@ class Stride(nn.Module):
 
 
 class FusionModule(nn.Module):
-    def __init__(self, width_1, height_1, width_2, height_2):
+    def __init__(self, width_1, height_1, width_2, height_2, large=False):
         super(FusionModule, self).__init__()
-        self.upsample_1 = Upsample([width_1, height_1], 256, 128)
-        self.upsample_2 = nn.Sequential(Upsample([width_2, height_2], 512, 256), 
-                                        Upsample([width_1, height_1], 256, 128)) 
+        if not large:
+            self.upsample_1 = Upsample([width_1, height_1], 256, 128)
+            self.upsample_2 = nn.Sequential(Upsample([width_2, height_2], 512, 256), 
+                                            Upsample([width_1, height_1], 256, 128)) 
 
-        self.stride_1 = Stride(128, 256)
-        self.upsample_3 = Upsample([width_2, height_2], 512, 256)
+            self.stride_1 = Stride(128, 256)
+            self.upsample_3 = Upsample([width_2, height_2], 512, 256)
 
-        self.stride_2 = nn.Sequential(Stride(128, 256), 
-                                      Stride(256, 512))
-        self.stride_3 = Stride(256, 512)
+            self.stride_2 = nn.Sequential(Stride(128, 256), 
+                                        Stride(256, 512))
+            self.stride_3 = Stride(256, 512)
+        else:
+            self.upsample_1 = Upsample([width_1, height_1], 512, 256)
+            self.upsample_2 = nn.Sequential(Upsample([width_2, height_2], 1024, 512), 
+                                            Upsample([width_1, height_1], 512, 256)) 
+
+            self.stride_1 = Stride(256, 512)
+            self.upsample_3 = Upsample([width_2, height_2], 1024, 512)
+
+            self.stride_2 = nn.Sequential(Stride(256, 512), 
+                                        Stride(512, 1024))
+            self.stride_3 = Stride(512, 1024)
     
     def forward(self, feature_1, feature_2, feature_3):
         feature_1_out = feature_1 + self.upsample_1(feature_2) + self.upsample_2(feature_3)
@@ -167,16 +179,17 @@ class NIX(nn.Module):
         self.fusion_2 = FusionModule(self.img_width_2, self.img_height_2, 
                                      self.img_width_3, self.img_height_3)
         self.fusion_3 = FusionModule(self.img_width_2, self.img_height_2, 
-                                     self.img_width_3, self.img_height_3)
+                                     self.img_width_3, self.img_height_3,
+                                     True)
 
-        self.conv_1 = ConvBlock(256, 128)
-        self.conv_2 = ConvBlock(512, 256)
-        self.conv_3 = ConvBlock(1024, 512)
-        self.conv_4 = ConvBlock(384, 1)
+        self.conv_1 = ConvBlock(256, 256)
+        self.conv_2 = ConvBlock(512, 512)
+        self.conv_3 = ConvBlock(1024, 1024)
+        self.conv_4 = ConvBlock(768, 1)
 
-        self.upsample_1 = Upsample([self.img_width_2, self.img_height_2], 256, 128)
-        self.upsample_2 = nn.Sequential(Upsample([self.img_width_3, self.img_height_3], 512, 256), 
-                                        Upsample([self.img_width_2, self.img_height_2], 256, 128)) 
+        self.upsample_1 = Upsample([self.img_width_2, self.img_height_2], 512, 256)
+        self.upsample_2 = nn.Sequential(Upsample([self.img_width_3, self.img_height_3], 1024, 512), 
+                                        Upsample([self.img_width_2, self.img_height_2], 512, 256)) 
         self.upsample_3 = Upsample([self.img_width_1, self.img_height_1], 1, 1)
 
         self.sigmoid = nn.Sigmoid()
