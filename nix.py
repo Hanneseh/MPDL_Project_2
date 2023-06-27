@@ -8,11 +8,16 @@ class ResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels, stride=2):
         super(ResidualBlock, self).__init__()
 
-        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(out_channels)
-        self.relu = nn.ReLU(inplace=True)
-        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.res = nn.Sequential(
+            nn.BatchNorm2d(in_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False)
+        )
+        
+        
 
         # If the input and output channels are different, adjust using a 1x1 convolution
         if stride != 1 or in_channels != out_channels:
@@ -25,17 +30,8 @@ class ResidualBlock(nn.Module):
 
     def forward(self, x):
         identity = x.clone()
-
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-
-        out = self.conv2(out)
-        out = self.bn2(out)
-
+        out = self.res(x)
         out += self.shortcut(identity)
-        out = self.relu(out)
-
         return out
 
     
