@@ -17,8 +17,6 @@ class ResidualBlock(nn.Module):
             nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False)
         )
         
-        
-
         # If the input and output channels are different, adjust using a 1x1 convolution
         if stride != 1 or in_channels != out_channels:
             self.shortcut = nn.Sequential(
@@ -174,16 +172,16 @@ class NIX(nn.Module):
                                      self.img_width_3, self.img_height_3)
         self.fusion_3 = FusionModule(self.img_width_2, self.img_height_2, 
                                      self.img_width_3, self.img_height_3,
-                                     True)
+                                     False)
 
-        self.conv_1 = ConvBlock(256, 256)
-        self.conv_2 = ConvBlock(512, 512)
-        self.conv_3 = ConvBlock(1024, 1024)
-        self.conv_4 = ConvBlock(768, 1)
+        self.conv_1 = ConvBlock(256, 128)
+        self.conv_2 = ConvBlock(512, 256)
+        self.conv_3 = ConvBlock(1024, 512)
+        self.conv_4 = ConvBlock(384, 1)
 
-        self.upsample_1 = Upsample([self.img_width_2, self.img_height_2], 512, 256)
-        self.upsample_2 = nn.Sequential(Upsample([self.img_width_3, self.img_height_3], 1024, 512), 
-                                        Upsample([self.img_width_2, self.img_height_2], 512, 256)) 
+        self.upsample_1 = Upsample([self.img_width_2, self.img_height_2], 256, 128)
+        self.upsample_2 = nn.Sequential(Upsample([self.img_width_3, self.img_height_3], 512, 256), 
+                                        Upsample([self.img_width_2, self.img_height_2], 256, 128)) 
         self.upsample_3 = Upsample([self.img_width_1, self.img_height_1], 1, 1)
 
         self.sigmoid = nn.Sigmoid()
