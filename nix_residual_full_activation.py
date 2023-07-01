@@ -8,12 +8,15 @@ class ResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels, stride=2):
         super(ResidualBlock, self).__init__()
 
-        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(out_channels)
-        self.relu = nn.ReLU(inplace=True)
-        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(out_channels)
-
+        self.res = nn.Sequential(
+            nn.BatchNorm2d(in_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False)
+        )
+        
         # If the input and output channels are different, adjust using a 1x1 convolution
         if stride != 1 or in_channels != out_channels:
             self.shortcut = nn.Sequential(
@@ -25,17 +28,8 @@ class ResidualBlock(nn.Module):
 
     def forward(self, x):
         identity = x.clone()
-
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-
-        out = self.conv2(out)
-        out = self.bn2(out)
-
+        out = self.res(x)
         out += self.shortcut(identity)
-        out = self.relu(out)
-
         return out
 
     
@@ -49,11 +43,10 @@ class ConvBlock(nn.Module):
             out_channels (int): Specifies the output channels for the ConvBlock
         """
         super(ConvBlock, self).__init__()
-        self.conv1 = nn.Sequential(
+        self.conv = nn.Sequential(
                         nn.Conv2d(in_channels, in_channels, kernel_size=3, padding="same"),
                         nn.BatchNorm2d(in_channels),
-                        nn.ReLU())
-        self.conv2 = nn.Sequential(
+                        nn.ReLU(),
                         nn.Conv2d(in_channels, out_channels, kernel_size=3, padding="same"),
                         nn.BatchNorm2d(out_channels),
                         nn.ReLU())
@@ -67,9 +60,7 @@ class ConvBlock(nn.Module):
         Returns:
             torch.tensor: Prediction of ConvBlock
         """
-        out = self.conv1(x)
-        out = self.conv2(out)
-        return out
+        return self.conv(x)
     
 
 class Upsample(nn.Module):
@@ -82,8 +73,11 @@ class Upsample(nn.Module):
             out_channels (int): Specifies the output channels fof the Upsample operation
         """
         super(Upsample, self).__init__()
-        self.upsample = nn.Upsample(size=out_size, mode="bilinear")
-        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=1, padding="same")
+        self.upsample = nn.Sequential(
+            nn.Upsample(size=out_size, mode="bilinear"),
+            nn.Conv2d(in_channels, out_channels, kernel_size=1, padding="same")
+        )
+        
 
     def forward(self, x):
         """Implements the forward methode of nn.Module
@@ -94,9 +88,7 @@ class Upsample(nn.Module):
         Returns:
             torch.tensor: Prediction of Upsample
         """
-        x = self.upsample(x)
-        x = self.conv(x)
-        return x
+        return self.upsample(x)
 
 
 class Stride(nn.Module):
@@ -124,18 +116,30 @@ class Stride(nn.Module):
 
 
 class FusionModule(nn.Module):
-    def __init__(self, width_1, height_1, width_2, height_2):
+    def __init__(self, width_1, height_1, width_2, height_2, large=False):
         super(FusionModule, self).__init__()
-        self.upsample_1 = Upsample([width_1, height_1], 256, 128)
-        self.upsample_2 = nn.Sequential(Upsample([width_2, height_2], 512, 256), 
-                                        Upsample([width_1, height_1], 256, 128)) 
+        if not large:
+            self.upsample_1 = Upsample([width_1, height_1], 256, 128)
+            self.upsample_2 = nn.Sequential(Upsample([width_2, height_2], 512, 256), 
+                                            Upsample([width_1, height_1], 256, 128)) 
 
-        self.stride_1 = Stride(128, 256)
-        self.upsample_3 = Upsample([width_2, height_2], 512, 256)
+            self.stride_1 = Stride(128, 256)
+            self.upsample_3 = Upsample([width_2, height_2], 512, 256)
 
-        self.stride_2 = nn.Sequential(Stride(128, 256), 
-                                      Stride(256, 512))
-        self.stride_3 = Stride(256, 512)
+            self.stride_2 = nn.Sequential(Stride(128, 256), 
+                                        Stride(256, 512))
+            self.stride_3 = Stride(256, 512)
+        else:
+            self.upsample_1 = Upsample([width_1, height_1], 512, 256)
+            self.upsample_2 = nn.Sequential(Upsample([width_2, height_2], 1024, 512), 
+                                            Upsample([width_1, height_1], 512, 256)) 
+
+            self.stride_1 = Stride(256, 512)
+            self.upsample_3 = Upsample([width_2, height_2], 1024, 512)
+
+            self.stride_2 = nn.Sequential(Stride(256, 512), 
+                                        Stride(512, 1024))
+            self.stride_3 = Stride(512, 1024)
     
     def forward(self, feature_1, feature_2, feature_3):
         feature_1_out = feature_1 + self.upsample_1(feature_2) + self.upsample_2(feature_3)
@@ -167,7 +171,8 @@ class NIX(nn.Module):
         self.fusion_2 = FusionModule(self.img_width_2, self.img_height_2, 
                                      self.img_width_3, self.img_height_3)
         self.fusion_3 = FusionModule(self.img_width_2, self.img_height_2, 
-                                     self.img_width_3, self.img_height_3)
+                                     self.img_width_3, self.img_height_3,
+                                     False)
 
         self.conv_1 = ConvBlock(256, 128)
         self.conv_2 = ConvBlock(512, 256)
@@ -221,3 +226,4 @@ if __name__ == "__main__":
     print(summary(nix, [(3, img_width, img_height), (3, img_width, img_height)], batch_dim = 0, 
                   col_names = ("input_size", "output_size", "num_params", "kernel_size", "mult_adds"), 
                   verbose=0))
+
