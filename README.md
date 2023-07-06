@@ -42,6 +42,16 @@
 ## Task 6: Nix-Model Validation and Training
 - Validate the current implementation of the Nix-Model.
 - Train the Nix-Model using the available 10,000 images. Compare its test IOU performance with the baseline.
+- Train on realfake (10k laion):
+  - How does it perform when evaluated on fakefake images?
+    - Test IoU: 0.916 (NIX 40 million weight)
+  - How does it perform when evaluated on realfake images?
+    - test IoU 0.883 (NIX 40 million weight)
+- Train on fakefakes: 
+  - How does it perform when evaluated on fakefake images?
+    - Test IoU: 0.905 (NIX 40 million weight)
+  - How does it perform when evaluated on realfake images?
+    - Test IoU: 0.759 (NIX 40 million weight)
 
 ## Task 7: Training and Testing Models on Combined Dataset
 - Train the baseline model on the combined dataset and evaluate its performance.
