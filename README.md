@@ -1,5 +1,5 @@
-# MPDL_Poject_2 Group 2
-Project repo for "Masterpraktikum Deep Learning and Natural Language Processing" at the Ruhr University Bochum in the summer term 2023.
+# Master Praktikum Deep Learning: Inpainting Detection
+This repo contains the skript, notebooks and models resulting from the master project "Inpainting Detection" at the Ruhr University Bochum in the summer term 2023.
 
 ## Objective of the project
 The objective of the second project of the seminar was to develop an effective image inpainting detector, with a specific focus on understanding and addressing the noise patterns found in inpainted images. Furthermore the project sought to answer the question if the noise patterns characteristic of modern inpainting pipelines could be effectively learned and detected without the use of specialized model architectures.
@@ -15,7 +15,7 @@ We trained our models on two datasets.
 ## Files in this repository
 Listing of all relevant files for this project.
 - [report.pdf](./report.pdf): The report of the project
-- [baseline](./baseline/): 
+- [baseline](./baseline/): ...
 - [Nix](./Nix/): ...
 - [data_generation](./data_generation/): scripts that were used to generate the additional data
   - [inpainting.py](./data_generation/inpainting.py): generation of the first data set
