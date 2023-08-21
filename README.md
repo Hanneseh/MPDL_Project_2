@@ -15,8 +15,8 @@ We trained our models on two datasets.
 ## Files in this repository
 Listing of all relevant files for this project.
 - [report.pdf](./report.pdf): The report of the project
-- [baseline](./baseline/): ...
-- [Nix](./Nix/): ...
+- [baseline](./baseline/): contains the training scripts and model checkpoints for the baseline model.
+- [Nix](./Nix/): contains the training scripts, different model architectures and theri model checkpoints for the NIX model.
 - [data_generation](./data_generation/): scripts that were used to generate the additional data
   - [inpainting.py](./data_generation/inpainting.py): generation of the first data set
   - [qmd_masks.py](./data_generation/qmd_masks.py): generation of images with the QuickDraw dataset
