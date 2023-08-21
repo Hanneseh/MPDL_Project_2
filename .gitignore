@@ -1,6 +1,3 @@
 .ipynb_checkpoints/
 __pycache__/
 .DS_Store
-data/
-train2017/
-irregular_mask/
