@@ -62,11 +62,16 @@ def val_epoch(model, dataloader, device):
     with no_grad():
         for x, r, y in tqdm(dataloader):
             x, r, y = x.to(device, dtype=float32), r.to(device, dtype=float32), y.to(device, dtype=float32)
+
             output = model(x, r)
+
             totalvalloss += sigmoid_focal_loss(output, y, reduction="mean").item()
+
             pred = (sigmoid(output) > 0.5).int()
             y = (sigmoid(y) > 0.5).int()
+
             total_iou += jaccard_score(y.flatten().cpu().numpy(), pred.flatten().cpu().numpy())
+
     totalvalloss = totalvalloss/len(dataloader)
     total_iou = total_iou / len(dataloader)
     return totalvalloss, total_iou

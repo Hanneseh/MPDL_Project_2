@@ -30,15 +30,115 @@ def collate_fn(examples):
     return images, residuals, masks
 
 
+class CombinedDataset(Dataset):
+    def __init__(self, dir_path1, dir_path2, images):
+        self.dir_path1 = dir_path1
+        self.dir_path2 = dir_path2
+        self.images = images
+
+        self.image_files1 = []
+        self.mask_files1 = []
+
+        for file_name in os.listdir(dir_path1):
+            if file_name.endswith(f'.{images}.webp'):
+                self.image_files1.append(os.path.join(dir_path1, file_name))
+            elif file_name.endswith('.mask.webp'):
+                self.mask_files1.append(os.path.join(dir_path1, file_name))
+                
+        self.image_files1.sort()
+        self.mask_files1.sort()
+                
+        self.image_files2 = []
+        self.mask_files2 = []
+
+        for file_name in os.listdir(dir_path2):
+            if file_name.endswith(f'.{images}.webp'):
+                self.image_files2.append(os.path.join(dir_path2, file_name))
+            elif file_name.endswith('.mask.webp'):
+                self.mask_files2.append(os.path.join(dir_path2, file_name))
+                
+        self.image_files2.sort()
+        self.mask_files2.sort()
+
+        # Ensure that the masks and images are in the same order
+        self.image_files = self.image_files1 + self.image_files2
+        self.mask_files = self.mask_files1 + self.mask_files2
+
+        filter1 = [[-1, 2, -2, 2, -1],
+                    [2, -6, 8, -6, 2],
+                    [-2, 8, -12, 8, -2],
+                    [2, -6, 8, -6, 2],
+                    [-1, 2, -2, 2, -1]]
+        filter2 =  [[0, 0, 0, 0, 0],
+                    [0, -1, 2, -1, 0],
+                    [0, 2, -4, 2, 0],
+                    [0, -1, 2, -1, 0],
+                    [0, 0, 0, 0, 0]]
+        filter3 =  [[0, 0, 0, 0, 0],
+                    [0, 0, 1, 0, 0],
+                    [0, 0,-2, 0, 0],
+                    [0, 0, 1, 0, 0],
+                    [0, 0, 0, 0, 0]]
+        filter1 = np.asarray(filter1, dtype=float) / 12
+        filter2 = np.asarray(filter2, dtype=float) / 4
+        filter3 = np.asarray(filter3, dtype=float) / 2
+        filters = np.asarray(( [[filter1, filter1, filter1], 
+                                [filter2, filter2, filter2], 
+                                [filter3, filter3, filter3]]))
+        self.filters = tensor(filters, dtype=float32)
+
+
+    def SRM(self, imgs):
+        imgs = np.array(imgs, dtype=np.float32)
+        imgs = np.einsum('klij->kjli', imgs)
+        input = tensor(imgs, dtype=float32)
+        op1 = conv2d(input, self.filters, stride=1, padding=2)
+
+        op1 = op1[0]
+        return op1
+
+    def __len__(self):
+        return len(self.image_files)
+
+    def __getitem__(self, idx):
+        image_path = self.image_files[idx]
+        mask_path = self.mask_files[idx]
+
+        image = Image.open(image_path).convert('RGB')
+        srm = self.SRM([np.asarray(image, dtype=np.float32)])
+        mask = Image.open(mask_path).convert('RGB')
+
+        # convert to numpy array
+        mask = np.asarray(mask)
+        # only take the first color channel (512, 512, 3) -> (512, 512)
+        mask = mask[:,:,0]
+        # convert mask to binary mask: Everything samaller than 255 is 0, everything else is 1
+        mask = np.where(mask == 255, 1, 0)
+
+        transform = transforms.ToTensor()
+        image = transform(image)
+
+        residual = image - srm
+        residual[residual > 1] = 1
+        residual[residual < -1] = -1
+        residual = (residual - torch.min(residual)) / (torch.max(residual) - torch.min(residual))
+        # Convert to tensor
+        #mask = mask[: ,np.newaxis, ...]
+        mask = torch.from_numpy(mask)
+        # Change the data type of mask to Float
+        mask = mask.float()
+        return image, residual, mask
+
+
 class ImageDataset(Dataset):
-    def __init__(self, dir_path):
+    def __init__(self, dir_path, data='.inpainted.webp'):
         self.dir_path = dir_path
 
         self.image_files = []
         self.mask_files = []
 
         for file_name in os.listdir(dir_path):
-            if file_name.endswith('.realfake.webp'):
+            if file_name.endswith(f"{data}.webp"):
                 self.image_files.append(os.path.join(dir_path, file_name))
             elif file_name.endswith('.mask.webp'):
                 self.mask_files.append(os.path.join(dir_path, file_name))
@@ -111,94 +211,3 @@ class ImageDataset(Dataset):
         mask = mask.float()
         return image, residual, mask
     
-
-
-
-
-
-
-
-
-
-
-
-class FakeFakeDataset(Dataset):
-    def __init__(self, dir_path):
-        self.dir_path = dir_path
-
-        self.image_files = []
-        self.mask_files = []
-
-        for file_name in os.listdir(dir_path):
-            if file_name.endswith('.fakefake.webp'):
-                self.image_files.append(os.path.join(dir_path, file_name))
-            elif file_name.endswith('.mask.webp'):
-                self.mask_files.append(os.path.join(dir_path, file_name))
-
-        # Ensure that the masks and images are in the same order
-        self.image_files.sort()
-        self.mask_files.sort()
-
-        filter1 = [[-1, 2, -2, 2, -1],
-                    [2, -6, 8, -6, 2],
-                    [-2, 8, -12, 8, -2],
-                    [2, -6, 8, -6, 2],
-                    [-1, 2, -2, 2, -1]]
-        filter2 =  [[0, 0, 0, 0, 0],
-                    [0, -1, 2, -1, 0],
-                    [0, 2, -4, 2, 0],
-                    [0, -1, 2, -1, 0],
-                    [0, 0, 0, 0, 0]]
-        filter3 =  [[0, 0, 0, 0, 0],
-                    [0, 0, 1, 0, 0],
-                    [0, 0,-2, 0, 0],
-                    [0, 0, 1, 0, 0],
-                    [0, 0, 0, 0, 0]]
-        filter1 = np.asarray(filter1, dtype=float) / 12
-        filter2 = np.asarray(filter2, dtype=float) / 4
-        filter3 = np.asarray(filter3, dtype=float) / 2
-        filters = np.asarray(( [[filter1, filter1, filter1], 
-                                [filter2, filter2, filter2], 
-                                [filter3, filter3, filter3]]))
-        self.filters = tensor(filters, dtype=float32)
-
-
-    def SRM(self, imgs):
-        imgs = np.array(imgs, dtype=np.float32)
-        imgs = np.einsum('klij->kjli', imgs)
-        input = tensor(imgs, dtype=float32)
-        op1 = conv2d(input, self.filters, stride=1, padding=2)
-
-        op1 = op1[0]
-        return op1
-
-    def __len__(self):
-        return len(self.image_files)
-
-    def __getitem__(self, idx):
-        image_path = self.image_files[idx]
-        mask_path = self.mask_files[idx]
-
-        image = Image.open(image_path).convert('RGB')
-        srm = self.SRM([np.asarray(image, dtype=np.float32)])
-        mask = Image.open(mask_path).convert('RGB')
-
-        # convert to numpy array
-        mask = np.asarray(mask)
-        # only take the first color channel (512, 512, 3) -> (512, 512)
-        mask = mask[:,:,0]
-        # convert mask to binary mask: Everything samaller than 255 is 0, everything else is 1
-        mask = np.where(mask == 255, 1, 0)
-
-        transform = transforms.ToTensor()
-        image = transform(image)
-
-        residual = image - srm
-        residual[residual > 1] = 1
-        residual[residual < -1] = -1
-        residual = (residual - torch.min(residual)) / (torch.max(residual) - torch.min(residual))
-        # Convert to tensor
-        mask = torch.from_numpy(mask)
-        # Change the data type of mask to Float
-        mask = mask.float()
-        return image, residual, mask

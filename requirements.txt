@@ -1,5 +1,0 @@
-torch
-torchinfo
-tqdm
-urllib3==1.26.6
-numpy
